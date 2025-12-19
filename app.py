@@ -413,14 +413,26 @@ with tab4:
                 show["숏폼 URL"] = show["숏폼 URL"].apply(lambda u: f"[링크]({u})")
                 st.markdown(show.to_markdown(index=False), unsafe_allow_html=True)
 
-            # 쌍 선택해서 바로 재생
-            st.markdown("### 🎞️ 쌍 선택 재생")
-            pair_df = pair_df.reset_index(drop=True)
-            pick = st.selectbox("재생할 쌍 선택", options=list(range(len(pair_df))), format_func=lambda i: f"{i+1}. {pair_df.loc[i,'롱폼 제목']}")
-            st.write("롱폼")
-            st.video(pair_df.loc[pick, "롱폼 URL"])
-            st.write("숏폼")
-            st.video(pair_df.loc[pick, "숏폼 URL"])
+           with st.expander("쌍 목록 보기 (URL 클릭 가능)"):
+    show = pair_df.copy()
+
+    # 클릭 가능한 링크 컬럼 생성
+    show["롱폼 링크"] = show["롱폼 URL"].apply(lambda u: f'<a href="{u}" target="_blank">롱폼 열기</a>')
+    show["숏폼 링크"] = show["숏폼 URL"].apply(lambda u: f'<a href="{u}" target="_blank">숏폼 열기</a>')
+
+    # 화면에 보여줄 컬럼만 추리기(너무 길어지면 보기 힘들어서)
+    cols_to_show = [
+        "롱폼 제목", "숏폼 제목",
+        "롱폼 날짜", "숏폼 날짜", "날짜 차이(일)",
+        "롱폼 댓글참여율", "숏폼 댓글참여율", "댓글참여율 차이(롱-숏)",
+        "롱폼 좋아요참여율", "숏폼 좋아요참여율", "좋아요참여율 차이(롱-숏)",
+        "롱폼 링크", "숏폼 링크"
+    ]
+    cols_to_show = [c for c in cols_to_show if c in show.columns]
+
+    # HTML 링크 렌더링
+    st.write(show[cols_to_show].to_html(escape=False, index=False), unsafe_allow_html=True)
+
 
 # -----------------------------
 # 데이터 미리보기
@@ -428,3 +440,4 @@ with tab4:
 with st.expander("필터 적용 데이터 보기"):
     preview_cols = [c for c in [COL_DATE, COL_TYPE, COL_DURATION, COL_COMMENTS, COL_LIKES, COL_VIEWS, COL_URL, COL_TITLE] if c in filtered_df.columns]
     st.dataframe(filtered_df[preview_cols].reset_index(drop=True))
+
