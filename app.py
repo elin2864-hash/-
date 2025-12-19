@@ -264,123 +264,6 @@ with tab3:
 
         st.caption("해석: 업로드 타이밍에 따라 참여율이 출렁이는지, 포맷별 추이가 다른지 확인합니다.")
 
-# 4) 회차 기준 쌍비교(±1일)
-with tab4:
-    st.markdown("### 회차 기준 쌍비교 로직")
-    st.markdown("- 같은 날짜에 올라온 롱폼/숏폼, 또는 업로드 날짜가 **±1일 이내**인 롱폼/숏폼은 같은 회차(같은 클립)로 간주합니다.")
-    st.markdown("- 각 롱폼에 대해 조건(±1일)을 만족하는 숏폼이 여러 개면, **업로드 날짜 차이가 가장 작은** 숏폼 1개를 매칭합니다.")
-
-    # 쌍비교는 전체에서 하는 게 일반적으로 자연스러움 (사용자 선택 존중)
-    long_df = filtered_df[(filtered_df[COL_TYPE] == "long")].dropna(subset=[COL_DATE]).copy()
-    shorts_df = filtered_df[(filtered_df[COL_TYPE] == "shorts")].dropna(subset=[COL_DATE]).copy()
-
-    if long_df.empty or shorts_df.empty:
-        st.info("현재 필터 조건에서 롱폼/숏폼 둘 다 존재해야 쌍비교가 가능합니다. (필터를 '전체'로 두는 것을 추천)")
-    else:
-        long_df = long_df.reset_index(drop=False).rename(columns={"index": "long_idx"})
-        shorts_df = shorts_df.reset_index(drop=False).rename(columns={"index": "short_idx"})
-
-        # 모든 조합 생성(데이터 규모가 크지 않을 때 적합) + ±1일 조건 필터
-        pairs = long_df.assign(_k=1).merge(shorts_df.assign(_k=1), on="_k", suffixes=("_long", "_short")).drop(columns=["_k"])
-        pairs["day_diff"] = (pairs[f"{COL_DATE}_long"] - pairs[f"{COL_DATE}_short"]).abs().dt.days
-        pairs = pairs[pairs["day_diff"] <= 1].copy()
-
-        if pairs.empty:
-            st.warning("±1일 조건을 만족하는 롱폼-숏폼 쌍이 없습니다. date_final 값 또는 필터 범위를 확인해 주세요.")
-        else:
-            # long_idx별 day_diff 최소인 shorts 1개 선택
-            pairs = pairs.sort_values(["long_idx", "day_diff"])
-            best_pairs = pairs.groupby("long_idx", as_index=False).head(1).copy()
-
-            # 쌍 데이터 구성
-            pair_df = pd.DataFrame({
-                "롱폼 제목": best_pairs.get(f"{COL_TITLE}_long", pd.Series(["(제목 없음)"] * len(best_pairs))),
-                "롱폼 URL": best_pairs[f"{COL_URL}_long"],
-                "숏폼 제목": best_pairs.get(f"{COL_TITLE}_short", pd.Series(["(제목 없음)"] * len(best_pairs))),
-                "숏폼 URL": best_pairs[f"{COL_URL}_short"],
-                "롱폼 날짜": best_pairs[f"{COL_DATE}_long"].dt.date,
-                "숏폼 날짜": best_pairs[f"{COL_DATE}_short"].dt.date,
-                "날짜 차이(일)": best_pairs["day_diff"],
-                "롱폼 댓글참여율": best_pairs[f"{COL_COMMENTS}_long"],
-                "숏폼 댓글참여율": best_pairs[f"{COL_COMMENTS}_short"],
-                "롱폼 좋아요참여율": best_pairs[f"{COL_LIKES}_long"],
-                "숏폼 좋아요참여율": best_pairs[f"{COL_LIKES}_short"],
-            })
-
-            pair_df["댓글참여율 차이(롱-숏)"] = pair_df["롱폼 댓글참여율"] - pair_df["숏폼 댓글참여율"]
-            pair_df["좋아요참여율 차이(롱-숏)"] = pair_df["롱폼 좋아요참여율"] - pair_df["숏폼 좋아요참여율"]
-
-            st.write(f"매칭된 쌍 개수: **{len(pair_df)}쌍**")
-
-            left, right = st.columns(2)
-
-            with left:
-                fig = px.scatter(
-                    pair_df,
-                    x="숏폼 댓글참여율",
-                    y="롱폼 댓글참여율",
-                    title="쌍비교: 숏폼 vs 롱폼 댓글 참여율 (각 점=같은 회차 쌍)",
-                    labels={"숏폼 댓글참여율": "숏폼 댓글참여율", "롱폼 댓글참여율": "롱폼 댓글참여율"},
-                    hover_data=["롱폼 제목", "숏폼 제목", "날짜 차이(일)"]
-                )
-                fig.update_layout(font=PLOTLY_FONT)
-                st.plotly_chart(fig, use_container_width=True)
-                st.caption("해석: 대각선(y=x) 위 점이 많으면 같은 회차에서 롱폼 댓글 참여율이 더 높은 경향을 의미합니다.")
-
-            with right:
-                fig = px.histogram(
-                    pair_df,
-                    x="댓글참여율 차이(롱-숏)",
-                    nbins=30,
-                    title="쌍비교: 댓글 참여율 차이 분포 (롱폼 - 숏폼)",
-                    labels={"댓글참여율 차이(롱-숏)": "댓글 참여율 차이(롱-숏)"},
-                )
-                fig.update_layout(font=PLOTLY_FONT)
-                st.plotly_chart(fig, use_container_width=True)
-                st.caption("해석: 0보다 큰 구간에 몰릴수록, 같은 회차에서 롱폼이 숏폼보다 댓글 참여율이 높았던 경우가 많음을 의미합니다.")
-
-            # 요약 통계
-            st.markdown("### 쌍비교 요약 통계")
-            d_comment = pair_df["댓글참여율 차이(롱-숏)"]
-            d_like = pair_df["좋아요참여율 차이(롱-숏)"]
-
-            s1, s2, s3, s4 = st.columns(4)
-            s1.metric("댓글 차이 평균(롱-숏)", f"{d_comment.mean():.6f}")
-            s2.metric("댓글 차이 중앙값(롱-숏)", f"{d_comment.median():.6f}")
-            s3.metric("좋아요 차이 평균(롱-숏)", f"{d_like.mean():.6f}")
-            s4.metric("좋아요 차이 중앙값(롱-숏)", f"{d_like.median():.6f}")
-
-            # 쌍 목록(링크 클릭 가능) - tabulate 의존성 없이 HTML로 렌더
-            with st.expander("쌍 목록 보기 (URL 클릭 가능)"):
-                show = pair_df.copy()
-                show["롱폼 링크"] = show["롱폼 URL"].apply(lambda u: f'<a href="{u}" target="_blank">롱폼 열기</a>')
-                show["숏폼 링크"] = show["숏폼 URL"].apply(lambda u: f'<a href="{u}" target="_blank">숏폼 열기</a>')
-
-                cols_to_show = [
-                    "롱폼 제목", "숏폼 제목",
-                    "롱폼 날짜", "숏폼 날짜", "날짜 차이(일)",
-                    "롱폼 댓글참여율", "숏폼 댓글참여율", "댓글참여율 차이(롱-숏)",
-                    "롱폼 좋아요참여율", "숏폼 좋아요참여율", "좋아요참여율 차이(롱-숏)",
-                    "롱폼 링크", "숏폼 링크"
-                ]
-                cols_to_show = [c for c in cols_to_show if c in show.columns]
-
-                st.write(show[cols_to_show].to_html(escape=False, index=False), unsafe_allow_html=True)
-
-            # 쌍 선택 재생
-            st.markdown("### 🎞️ 회차(쌍) 선택 재생")
-            pair_df = pair_df.reset_index(drop=True)
-
-            pick = st.selectbox(
-                "재생할 쌍 선택",
-                options=list(range(len(pair_df))),
-                format_func=lambda i: f"{i+1}. {pair_df.loc[i,'롱폼 제목']}"
-            )
-
-            st.write("롱폼")
-            st.video(pair_df.loc[pick, "롱폼 URL"])
-            st.write("숏폼")
-            st.video(pair_df.loc[pick, "숏폼 URL"])
 
 # -----------------------------
 # 상위 10% 영상 클릭 재생
@@ -449,4 +332,5 @@ else:
 with st.expander("필터 적용 데이터 보기"):
     preview_cols = [c for c in [COL_DATE, COL_TYPE, COL_DURATION, COL_COMMENTS, COL_LIKES, COL_VIEWS, COL_URL, COL_TITLE] if c in filtered_df.columns]
     st.dataframe(filtered_df[preview_cols].reset_index(drop=True))
+
 
