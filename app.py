@@ -155,67 +155,6 @@ with st.expander("📌 기초 통계 (전체/타입별)"):
     st.dataframe(grp)
 
 # -----------------------------
-# 상위 10% 영상 클릭 재생
-# -----------------------------
-st.divider()
-st.subheader("🎬 상위 10% 영상 보기 (클릭하면 앱에서 재생)")
-
-metric_options = {
-    "댓글 참여율 (Comments_Engagement)": COL_COMMENTS,
-    "좋아요 참여율 (Likes_Engagement)": COL_LIKES,
-}
-if COL_VIEWS in filtered_df.columns:
-    metric_options["조회수 (viewCount)"] = COL_VIEWS
-
-metric_label = st.selectbox("기준 지표 선택", list(metric_options.keys()))
-metric_col = metric_options[metric_label]
-
-metric_series = pd.to_numeric(filtered_df[metric_col], errors="coerce").dropna()
-if metric_series.empty:
-    st.info("선택한 지표에 유효한 값이 없어 상위 10%를 계산할 수 없습니다.")
-else:
-    threshold = metric_series.quantile(0.90)
-    top_df = filtered_df[pd.to_numeric(filtered_df[metric_col], errors="coerce") >= threshold].copy()
-    top_df = top_df.sort_values(metric_col, ascending=False)
-
-    st.caption(f"상위 10% 기준값(90퍼센타일): **{threshold:.6f}** (지표: {metric_label})")
-    st.write(f"상위 10% 영상 수: **{len(top_df)}개**")
-
-    # 재생 상태
-    if "selected_video_url" not in st.session_state:
-        st.session_state.selected_video_url = None
-        st.session_state.selected_video_title = None
-
-    # UI 과밀 방지: 상위 10% 중 최대 30개만 리스트업
-    show_n = min(30, len(top_df))
-    st.markdown(f"**상위 목록(최대 {show_n}개 표시)** — ‘▶ 보기’ 버튼을 누르면 아래에서 재생됩니다.")
-
-    for idx, row in top_df.head(show_n).iterrows():
-        title = row[COL_TITLE] if COL_TITLE in top_df.columns else f"video_{idx}"
-        vt = row["type_label"]
-        dt = row["date_only"]
-        val = row[metric_col]
-        url = row[COL_URL]
-
-        cols = st.columns([7, 2, 2])
-        with cols[0]:
-            st.markdown(
-                f"**{title}**  \n"
-                f"- 타입: {vt} | 날짜: {dt} | {metric_label}: `{float(val):.6f}`"
-            )
-        with cols[1]:
-            st.link_button("원본 링크", url)
-        with cols[2]:
-            if st.button("▶ 보기", key=f"play_{metric_col}_{idx}"):
-                st.session_state.selected_video_url = url
-                st.session_state.selected_video_title = title
-
-    if st.session_state.selected_video_url:
-        st.divider()
-        st.markdown(f"### ▶ 재생 중: {st.session_state.selected_video_title}")
-        st.video(st.session_state.selected_video_url)
-
-# -----------------------------
 # 시각화 탭
 # -----------------------------
 st.divider()
@@ -444,8 +383,70 @@ with tab4:
             st.video(pair_df.loc[pick, "숏폼 URL"])
 
 # -----------------------------
+# 상위 10% 영상 클릭 재생
+# -----------------------------
+st.divider()
+st.subheader("🎬 상위 10% 영상 보기 (클릭하면 앱에서 재생)")
+
+metric_options = {
+    "댓글 참여율 (Comments_Engagement)": COL_COMMENTS,
+    "좋아요 참여율 (Likes_Engagement)": COL_LIKES,
+}
+if COL_VIEWS in filtered_df.columns:
+    metric_options["조회수 (viewCount)"] = COL_VIEWS
+
+metric_label = st.selectbox("기준 지표 선택", list(metric_options.keys()))
+metric_col = metric_options[metric_label]
+
+metric_series = pd.to_numeric(filtered_df[metric_col], errors="coerce").dropna()
+if metric_series.empty:
+    st.info("선택한 지표에 유효한 값이 없어 상위 10%를 계산할 수 없습니다.")
+else:
+    threshold = metric_series.quantile(0.90)
+    top_df = filtered_df[pd.to_numeric(filtered_df[metric_col], errors="coerce") >= threshold].copy()
+    top_df = top_df.sort_values(metric_col, ascending=False)
+
+    st.caption(f"상위 10% 기준값(90퍼센타일): **{threshold:.6f}** (지표: {metric_label})")
+    st.write(f"상위 10% 영상 수: **{len(top_df)}개**")
+
+    # 재생 상태
+    if "selected_video_url" not in st.session_state:
+        st.session_state.selected_video_url = None
+        st.session_state.selected_video_title = None
+
+    # UI 과밀 방지: 상위 10% 중 최대 30개만 리스트업
+    show_n = min(30, len(top_df))
+    st.markdown(f"**상위 목록(최대 {show_n}개 표시)** — ‘▶ 보기’ 버튼을 누르면 아래에서 재생됩니다.")
+
+    for idx, row in top_df.head(show_n).iterrows():
+        title = row[COL_TITLE] if COL_TITLE in top_df.columns else f"video_{idx}"
+        vt = row["type_label"]
+        dt = row["date_only"]
+        val = row[metric_col]
+        url = row[COL_URL]
+
+        cols = st.columns([7, 2, 2])
+        with cols[0]:
+            st.markdown(
+                f"**{title}**  \n"
+                f"- 타입: {vt} | 날짜: {dt} | {metric_label}: `{float(val):.6f}`"
+            )
+        with cols[1]:
+            st.link_button("원본 링크", url)
+        with cols[2]:
+            if st.button("▶ 보기", key=f"play_{metric_col}_{idx}"):
+                st.session_state.selected_video_url = url
+                st.session_state.selected_video_title = title
+
+    if st.session_state.selected_video_url:
+        st.divider()
+        st.markdown(f"### ▶ 재생 중: {st.session_state.selected_video_title}")
+        st.video(st.session_state.selected_video_url)
+
+# -----------------------------
 # 데이터 미리보기
 # -----------------------------
 with st.expander("필터 적용 데이터 보기"):
     preview_cols = [c for c in [COL_DATE, COL_TYPE, COL_DURATION, COL_COMMENTS, COL_LIKES, COL_VIEWS, COL_URL, COL_TITLE] if c in filtered_df.columns]
     st.dataframe(filtered_df[preview_cols].reset_index(drop=True))
+
