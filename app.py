@@ -1,10 +1,5 @@
 # app.py
 # 환승연애4 숏폼 vs 롱폼 참여 분석 대시보드 (최종 통합본)
-# 요구사항 반영:
-# 1) 같은 날짜 또는 ±1일 업로드 → 같은 회차(같은 클립)로 간주하여 '쌍비교' 탭 제공
-# 2) 채팅 인터페이스 제거
-# 3) 엑셀의 url로 상위 10%(지표별) 영상은 클릭 시 앱 내에서 재생(st.video)
-# 4) 한글/범례 깨짐 방지: Plotly 사용
 #
 # 실행(로컬):
 #   pip install streamlit pandas openpyxl plotly numpy
@@ -20,8 +15,6 @@ import plotly.express as px
 # -----------------------------
 st.set_page_config(page_title="환승연애4 | 숏폼 vs 롱폼 참여 분석", layout="wide")
 st.title("환승연애4 유튜브 숏폼 vs 롱폼 참여 분석 대시보드")
-st.caption("동일 클립 기반 콘텐츠의 포맷(type)에 따른 참여(댓글/좋아요) 양상 차이를 탐색합니다.")
-
 # -----------------------------
 # 컬럼명 (너 데이터셋 기준 고정)
 # -----------------------------
@@ -332,5 +325,6 @@ else:
 with st.expander("필터 적용 데이터 보기"):
     preview_cols = [c for c in [COL_DATE, COL_TYPE, COL_DURATION, COL_COMMENTS, COL_LIKES, COL_VIEWS, COL_URL, COL_TITLE] if c in filtered_df.columns]
     st.dataframe(filtered_df[preview_cols].reset_index(drop=True))
+
 
 
