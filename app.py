@@ -153,7 +153,7 @@ with st.expander("📌 기초 통계 (전체/타입별)"):
 st.divider()
 st.subheader("시각화")
 
-tab1, tab2, tab3, tab4 = st.tabs(["분포/길이", "타입 비교", "시간 추이"])
+tab1, tab2, tab3 = st.tabs(["분포/길이", "타입 비교", "시간 추이"])
 
 # 1) 분포/길이
 with tab1:
@@ -325,6 +325,7 @@ else:
 with st.expander("필터 적용 데이터 보기"):
     preview_cols = [c for c in [COL_DATE, COL_TYPE, COL_DURATION, COL_COMMENTS, COL_LIKES, COL_VIEWS, COL_URL, COL_TITLE] if c in filtered_df.columns]
     st.dataframe(filtered_df[preview_cols].reset_index(drop=True))
+
 
 
 
